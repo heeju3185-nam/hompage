@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>정평중학교 3학년 3반 아지트</title>
+  <style>
+    :root { --primary: #2563eb; --bg: #f8fafc; --card: #ffffff; --text: #1e293b; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; background-color: var(--bg); color: var(--text); line-height: 1.5; }
+    header { background: linear-gradient(135deg, #1e40af, #3b82f6); color: white; padding: 1.8rem 1rem; text-align: center; }
+    header h1 { font-size: 1.6rem; margin-bottom: 0.3rem; }
+    header p { font-size: 0.95rem; opacity: 0.9; }
+    .container { max-width: 900px; margin: 1.5rem auto; padding: 0 1rem; display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
+    @media (min-width: 768px) { .container { grid-template-columns: 1fr 1fr; } .full-width { grid-column: span 2; } }
+    .card { background: var(--card); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+    .card h2 { font-size: 1.15rem; margin-bottom: 0.8rem; padding-bottom: 0.5rem; border-bottom: 2px solid #edf2f7; }
+    .notice-item { background: #eff6ff; border-left: 4px solid var(--primary); padding: 0.75rem; margin-bottom: 0.5rem; border-radius: 4px; font-size: 0.9rem; }
+    .info-box { background: #f8fafc; padding: 0.85rem; border-radius: 8px; font-size: 0.9rem; white-space: pre-line; min-height: 90px; color: #334155; }
+    .chat-input-box { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .chat-input-box input { padding: 0.55rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; }
+    .chat-input-box input[type="text"]:first-child { width: 30%; }
+    .chat-input-box input[type="text"]:nth-child(2) { flex: 1; }
+    .btn-submit { background: var(--primary); color: white; border: none; border-radius: 6px; padding: 0 1.2rem; cursor: pointer; font-weight: bold; }
+    .btn-submit:hover { background: #1d4ed8; }
+    .chat-list { max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; }
+    .chat-item { background: #f1f5f9; padding: 0.6rem 0.8rem; border-radius: 6px; font-size: 0.85rem; display: flex; justify-content: space-between; }
+    .chat-author { font-weight: bold; color: #1e40af; }
+    .status-badge { display: inline-block; font-size: 0.75rem; background: #dcfce7; color: #166534; padding: 0.2rem 0.5rem; border-radius: 9999px; margin-left: 0.5rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🏫 정평중학교 3-3 우리들의 아지트</h1>
+    <p id="todayDate">2025학년도 행복한 교실</p>
+  </header>
+  <div class="container">
+    <section class="card full-width">
+      <h2>📢 학급 알림장 & 과제 안내</h2>
+      <div id="noticeContainer">
+        <div class="notice-item"><strong>[준비물]</strong> 내일 미술 시간 준비물 및 체육복 착용</div>
+        <div class="notice-item"><strong>[안내사항]</strong> 이번 주 금요일 학급 임원 선거 실시</div>
+      </div>
+    </section>
+    <section class="card">
+      <h2>🍱 오늘의 정평중 급식</h2>
+      <div class="info-box" id="mealBox">정평중학교 급식 정보를 불러오는 중입니다...</div>
+    </section>
+    <section class="card">
+      <h2>📅 이번 달 정평중 학사일정</h2>
+      <div class="info-box" id="scheduleBox">학사일정을 불러오는 중입니다...</div>
+    </section>
+    <section class="card full-width">
+      <h2>💬 우리반 실시간 소통터 <span class="status-badge">🟢 Firebase 실시간 연결됨</span></h2>
+      <form class="chat-input-box" id="chatForm">
+        <input type="text" id="chatName" placeholder="이름/별명" required maxlength="8">
+        <input type="text" id="chatText" placeholder="친구들에게 따뜻한 한마디를 남겨주세요!" required maxlength="60">
+        <button type="submit" class="btn-submit" id="submitBtn">등록</button>
+      </form>
+      <div class="chat-list" id="chatList">
+        <div style="text-align:center; color:#94a3b8; font-size:0.85rem; padding:1rem;">글 목록을 불러오는 중...</div>
+      </div>
+    </section>
+  </div>
+  <script>
+    const TARGET_SCHOOL = "정평중학교";
+    const TARGET_OFFICE = "J10";
+    const now = new Date();
+    const ymd = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
+    document.getElementById("todayDate").innerText = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일 오늘의 알림`;
+
+    async function loadSchoolData() {
+      const mealBox = document.getElementById("mealBox");
+      const scheduleBox = document.getElementById("scheduleBox");
+      try {
+        const res = await fetch(`https://open.neis.go.kr/hub/schoolInfo?Type=json&pIndex=1&pSize=5&ATPT_OFCDC_SC_CODE=${TARGET_OFFICE}&SCHUL_NM=${encodeURIComponent(TARGET_SCHOOL)}`);
+        const data = await res.json();
+        if (data.schoolInfo) {
+          const schoolCode = data.schoolInfo[1].row[0].SD_SCHUL_CODE;
+          fetchMeal(TARGET_OFFICE, schoolCode);
+          fetchSchedule(TARGET_OFFICE, schoolCode);
+        }
+      } catch (err) {}
+    }
+    async function fetchMeal(officeCode, schoolCode) {
+      try {
+        const res = await fetch(`https://open.neis.go.kr/hub/mealServiceDietInfo?Type=json&pIndex=1&pSize=1&ATPT_OFCDC_SC_CODE=${officeCode}&SD_SCHUL_CODE=${schoolCode}&MLSV_YMD=${ymd}`);
+        const data = await res.json();
+        if (data.mealServiceDietInfo) {
+          document.getElementById("mealBox").innerText = data.mealServiceDietInfo[1].row[0].DDISH_NM.replace(/<br\/>/g, '\n').replace(/\([0-9\.]+\)/g, '').trim();
+        } else {
+          document.getElementById("mealBox").innerText = "오늘은 급식이 없거나 휴업일입니다.";
+        }
+      } catch (e) {}
+    }
+    async function fetchSchedule(officeCode, schoolCode) {
+      try {
+        const res = await fetch(`https://open.neis.go.kr/hub/SchoolSchedule?Type=json&pIndex=1&pSize=6&ATPT_OFCDC_SC_CODE=${officeCode}&SD_SCHUL_CODE=${schoolCode}&AA_FROM_YMD=${ymd}`);
+        const data = await res.json();
+        if (data.SchoolSchedule) {
+          document.getElementById("scheduleBox").innerText = data.SchoolSchedule[1].row.map(item => `• ${Number(item.AA_YMD.slice(4, 6))}월 ${Number(item.AA_YMD.slice(6, 8))}일: ${item.EVENT_NM}`).join('\n');
+        } else {
+          document.getElementById("scheduleBox").innerText = "예정된 주요 학사일정이 없습니다.";
+        }
+      } catch (e) {}
+    }
+    loadSchoolData();
+  </script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDuv0atnz923APKnhtvd-XyZcGMuELM4WM",
+      authDomain: "hompage-496c6.firebaseapp.com",
+      projectId: "hompage-496c6",
+      storageBucket: "hompage-496c6.firebasestorage.app",
+      messagingSenderId: "206023203063",
+      appId: "1:206023203063:web:704ba24af8b2ca17109bf2",
+      measurementId: "G-0ZDF9DWK5B"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const chatCol = collection(db, "chat_messages");
+    const chatList = document.getElementById("chatList");
+
+    const q = query(chatCol, orderBy("createdAt", "desc"), limit(25));
+    onSnapshot(q, (snapshot) => {
+      if (snapshot.empty) {
+        chatList.innerHTML = `<div style="text-align:center; color:#94a3b8; font-size:0.85rem; padding:1rem;">첫 번째 글을 작성해보세요!</div>`;
+        return;
+      }
+      let html = "";
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        html += `<div class="chat-item"><div><span class="chat-author">${data.name || '익명'}:</span> ${data.text || ''}</div><span style="color:#94a3b8; font-size:0.75rem;">${data.timeStr || ''}</span></div>`;
+      });
+      chatList.innerHTML = html;
+    });
+
+    document.getElementById("chatForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("chatName").value.trim();
+      const text = document.getElementById("chatText").value.trim();
+      if (!name || !text) return;
+
+      const nowTime = new Date();
+      const timeStr = `${String(nowTime.getHours()).padStart(2, '0')}:${String(nowTime.getMinutes()).padStart(2, '0')}`;
+      try {
+        await addDoc(chatCol, { name, text, timeStr, createdAt: serverTimestamp() });
+        document.getElementById("chatText").value = "";
+      } catch (err) {
+        alert("Firestore 설정을 확인해주세요.");
+      }
+    });
+  </script>
+</body>
+</html>
